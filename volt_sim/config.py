@@ -112,6 +112,16 @@ RESTOCK_BASE_HOURS = 2.5
 RESTOCK_VOLUME_COEFF = 0.008    # max 7.0h at 500 orders
 RESTOCK_NOISE_RANGE = (-0.5, 0.5)
 
+# Restock level system — restock is a resource that depletes as orders are picked.
+# Starts at 100%. Each picked order drains it. When it hits 0%, picking speed
+# drops drastically (shelves empty). Restocking refills the level.
+RESTOCK_STARTING_LEVEL = 1.0            # 100%
+RESTOCK_DRAIN_PER_ORDER = None          # calculated per-episode: 1.0 / total_orders * drain_factor
+RESTOCK_DRAIN_FACTOR = 2.0              # level drains to 0 after ~50% of orders without restocking
+RESTOCK_PICK_PENALTY_THRESHOLD = 0.2    # below 20%, picking OPH drops
+RESTOCK_PICK_PENALTY_MULTIPLIER = 0.25  # at 0% restock, picking is 25% speed (shelves empty)
+RESTOCK_REFILL_PER_HOUR = None          # calculated per-episode based on restock_hours
+
 # ─── Side Projects ──────────────────────────────────────────────────────────
 DELIBERATE_PROJECT_CHANCE = 0.25
 DELIBERATE_PROJECT_SIZE_RANGE = (2.0, 6.0)  # worker-hours
@@ -280,7 +290,7 @@ PPO = {
 
 # ─── Training ───────────────────────────────────────────────────────────────
 TRAINING = {
-    "total_episodes": 10000,
+    "total_episodes": 100000,
     "log_interval": 10,
     "save_interval": 100,
     "rolling_window": 100,
@@ -291,11 +301,12 @@ TRAINING = {
 # Scalars: oph, hours_worked, hours_remaining, generic_debuff, individual_debuff,
 #          fatigue, is_picker, is_pack_only, soreness_progress, management_hours
 WORKER_STATE_SIZE = NUM_TASKS + 10  # 16
-ENV_STATE_SIZE = 14     # 1 hour + 1 orders_remaining + 1 orders_completed +
+ENV_STATE_SIZE = 15     # 1 hour + 1 orders_remaining + 1 orders_completed +
                         # 1 picked_not_audited + 1 restock_remaining +
                         # 1 side_project_progress + 4 season_onehot +
-                        # 1 is_high_volume + 1 total_mgmt_hours + 1 picker_needs_replacement
-TOTAL_STATE_SIZE = NUM_WORKERS * WORKER_STATE_SIZE + ENV_STATE_SIZE  # 7*16+14 = 126
+                        # 1 is_high_volume + 1 total_mgmt_hours + 1 picker_needs_replacement +
+                        # 1 restock_level
+TOTAL_STATE_SIZE = NUM_WORKERS * WORKER_STATE_SIZE + ENV_STATE_SIZE  # 7*16+15 = 127
 
 # ─── OT ─────────────────────────────────────────────────────────────────────
 # Everyone can stay until 6:30 PM (1 hour past 5:30 EOD).

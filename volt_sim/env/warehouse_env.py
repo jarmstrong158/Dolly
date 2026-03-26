@@ -18,6 +18,8 @@ from volt_sim.config import (
     MORNING_PICK_PER_CART_MIN, MORNING_PICK_PER_CART_MAX,
     FILLER_COMPLETION_THRESHOLD,
     MARCUS_PRE_SIM_MANAGEMENT,
+    RESTOCK_STARTING_LEVEL, RESTOCK_DRAIN_FACTOR,
+    RESTOCK_PICK_PENALTY_THRESHOLD, RESTOCK_PICK_PENALTY_MULTIPLIER,
 )
 from volt_sim.env.episode_generator import generate_episode, EpisodeConfig
 from volt_sim.env.workers import WorkerState
@@ -57,6 +59,11 @@ class WarehouseEnv:
         # Restock interruption tracking
         self.restock_interrupted_pick: bool = False
 
+        # Restock level — depletes as orders are picked, refilled by restocking
+        self.restock_level: float = RESTOCK_STARTING_LEVEL
+        self.restock_drain_per_order: float = 0.0
+        self.restock_refill_per_hour: float = 0.0
+
         # Step log for episode logging
         self.step_log: list = []
 
@@ -85,6 +92,14 @@ class WarehouseEnv:
         self.marcus_orders = 0
         self.nolan_orders = 0
         self.restock_interrupted_pick = False
+
+        # Restock level: drains as orders are picked, refilled by restock work
+        self.restock_level = RESTOCK_STARTING_LEVEL
+        total = max(1, self.episode.total_orders)
+        self.restock_drain_per_order = RESTOCK_DRAIN_FACTOR / total
+        # Refilling: 1 hour of restock work refills (1 / restock_hours) of the level
+        self.restock_refill_per_hour = 1.0 / max(0.1, self.episode.restock_hours)
+
         self.step_log = []
 
         # Process initial order arrivals
@@ -215,7 +230,15 @@ class WarehouseEnv:
             oph = w.effective_oph("pick")
             # Designated picker gets higher multiplier than supplemental pickers
             pick_mult = PICK_MULTIPLIER_MAIN if w.is_picker else PICK_MULTIPLIER_SUPPLEMENT
-            raw_output = oph * pick_mult * duration + w.work_carry
+
+            # Restock level gates picking speed — empty shelves = slow picks
+            restock_mult = 1.0
+            if self.restock_level < RESTOCK_PICK_PENALTY_THRESHOLD:
+                # Linear interpolation: at 0% → PENALTY_MULTIPLIER, at threshold → 1.0
+                t = self.restock_level / max(0.001, RESTOCK_PICK_PENALTY_THRESHOLD)
+                restock_mult = RESTOCK_PICK_PENALTY_MULTIPLIER + t * (1.0 - RESTOCK_PICK_PENALTY_MULTIPLIER)
+
+            raw_output = oph * pick_mult * restock_mult * duration + w.work_carry
             picked = min(int(raw_output), self.orders_in_queue)
             # Only carry fractional remainder from actual work, not idle accumulation
             if self.orders_in_queue > 0:
@@ -225,6 +248,9 @@ class WarehouseEnv:
             self.orders_in_queue -= picked
             self.orders_picked_not_audited += picked
             w.orders_picked += picked
+
+            # Drain restock level — picking depletes shelves
+            self.restock_level = max(0.0, self.restock_level - picked * self.restock_drain_per_order)
             w.check_fatigue()
             w.hours_worked += duration
             reward += self._add_reward("per_productive_hour", duration)
@@ -343,6 +369,8 @@ class WarehouseEnv:
             if task == "restock":
                 prev_remaining = self.restock_remaining
                 self.restock_remaining = max(0.0, self.restock_remaining - effective_duration)
+                # Refill the restock level — shelves getting restocked
+                self.restock_level = min(1.0, self.restock_level + effective_duration * self.restock_refill_per_hour)
                 # Only fire completion reward once — when restock transitions to 0
                 if prev_remaining > 0 and self.restock_remaining <= 0:
                     reward += self._add_reward("per_restock_completed", 1)
@@ -515,6 +543,10 @@ class WarehouseEnv:
         state[idx] = 1.0 if self.episode.picker_needs_replacement else 0.0
         idx += 1
 
+        # Restock level (0-1) — the bot needs to see this to know when shelves are empty
+        state[idx] = self.restock_level
+        idx += 1
+
         return state
 
     def _get_info(self) -> dict:
@@ -561,6 +593,7 @@ class WarehouseEnv:
                 else self.filler_progress, 2
             ),
             "running_reward": round(self.total_reward, 2),
+            "restock_level": round(self.restock_level, 3),
         })
 
     def get_episode_summary(self) -> dict:
