@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+.venv/
+/env/
+
+# Training artifacts — checkpoints, logs, archives
+*.pt
+volt_sim/data/episode_log.json
+volt_sim/data/notable_episodes/
+volt_sim/data/archive/
+volt_sim/data/checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp

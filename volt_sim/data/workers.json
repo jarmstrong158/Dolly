@@ -1,0 +1,9 @@
+[
+  {"id": 0, "name": "Marcus", "oph": 17.0,  "shift_hours": 9.75, "role": "manager"},
+  {"id": 1, "name": "Nolan",     "oph": 15.35, "shift_hours": 8.0,  "role": "assistant_manager"},
+  {"id": 2, "name": "Felix",    "oph": 16.23, "shift_hours": 8.0,  "role": "warehouse"},
+  {"id": 3, "name": "Blake",   "oph": 18.30, "shift_hours": 8.0,  "role": "warehouse"},
+  {"id": 4, "name": "Reid",      "oph": 18.94, "shift_hours": 8.0,  "role": "warehouse"},
+  {"id": 5, "name": "Trent",      "oph": 15.28, "shift_hours": 8.0,  "role": "warehouse"},
+  {"id": 6, "name": "Omar",    "oph": 14.88, "shift_hours": 8.0,  "role": "warehouse"}
+]
