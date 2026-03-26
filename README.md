@@ -10,7 +10,7 @@ A PPO agent learns to manage worker assignments, order flow, and shift logistics
 
 ## What It Does
 
-Dolly simulates a 7-person warehouse operation across a full work day in 30-minute intervals. The RL agent makes staffing decisions — who picks, who packs, who restocks, who handles side projects — and learns to optimize for order completion, restock management, and minimal overtime.
+Dolly simulates a 7-person warehouse operation across a full work day in 15-minute intervals. The RL agent makes staffing decisions — who picks, who packs, who restocks, who handles side projects — and learns to optimize for order completion, restock management, and minimal overtime.
 
 The simulation models real warehouse dynamics:
 - **Seasonal demand cycles** — order volume ranges from 60 (winter) to 500 (peak spring/summer)
